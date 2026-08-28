@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S.L.C Solutions — AI Customer Support Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <!-- Marked.js for markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <main class="chat-container">
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="brand-info">
+        <div class="brand-logo">SLC</div>
+        <div class="brand-text">
+          <h1>S.L.C Solutions Assistant</h1>
+          <p>Sri Lankan Construction & Hardware Marketplace RAG AI</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <div class="badge badge-groq">
+          <span class="dot"></span> Groq Qwen / Llama
+        </div>
+        <div class="badge badge-chroma">
+          <span class="dot"></span> ChromaDB RAG
+        </div>
+      </div>
+    </header>
+
+    <!-- Chat Messages Scroll Area -->
+    <section class="messages-box" id="messagesBox" aria-label="Chat messages list">
+      <div class="message-row bot">
+        <div class="avatar avatar-bot">🤖</div>
+        <div class="bubble">
+          <p>Hello! Welcome to <strong>S.L.C Solutions Customer Support</strong>.</p>
+          <p>I can help you with material orders, minimum order pooling (MOQ), contractor proposal wizards, supplier registration, dispute resolution, and platform policies. How can I assist you today?</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Suggested Question Chips -->
+    <section class="suggestions-bar" id="suggestionsBar">
+      <button class="chip" type="button">What is S.L.C Solutions?</button>
+      <button class="chip" type="button">How does MOQ order pooling work?</button>
+      <button class="chip" type="button">How to register as a supplier?</button>
+      <button class="chip" type="button">What are the customer support contact channels?</button>
+    </section>
+
+    <!-- Input Area -->
+    <footer class="input-area">
+      <form class="input-wrapper" id="chatForm">
+        <input 
+          type="text" 
+          id="chatInput" 
+          class="chat-input" 
+          placeholder="Ask a question about S.L.C Solutions..." 
+          autocomplete="off" 
+          required 
+        />
+        <button type="submit" id="sendBtn" class="send-btn" aria-label="Send message">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </form>
+    </footer>
+  </main>
+
+  <script>
+    const messagesBox = document.getElementById('messagesBox');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const suggestionsBar = document.getElementById('suggestionsBar');
+
+    function scrollToBottom() {
+      messagesBox.scrollTop = messagesBox.scrollHeight;
+    }
+
+    function appendMessage(role, contentHtml, sources = []) {
+      const row = document.createElement('div');
+      row.className = `message-row ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = `avatar ${role === 'user' ? 'avatar-user' : 'avatar-bot'}`;
+      avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = contentHtml;
+
+      if (sources && sources.length > 0) {
+        const sourcesContainer = document.createElement('div');
+        sourcesContainer.className = 'sources-container';
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'sources-toggle';
+        toggleBtn.innerHTML = `📚 Verified Sources (${sources.length}) <span>▾</span>`;
+
+        const sourcesList = document.createElement('div');
+        sourcesList.className = 'sources-list';
+        sourcesList.style.display = 'none';
+
+        sources.forEach((s) => {
+          const item = document.createElement('div');
+          item.className = 'source-item';
+          item.innerHTML = `
+            <div class="source-title">${s.file} (Page ${s.page})</div>
+            <div>${s.content_snippet}</div>
+          `;
+          sourcesList.appendChild(item);
+        });
+
+        toggleBtn.addEventListener('click', () => {
+          const isHidden = sourcesList.style.display === 'none';
+          sourcesList.style.display = isHidden ? 'flex' : 'none';
+          toggleBtn.querySelector('span').textContent = isHidden ? '▴' : '▾';
+          scrollToBottom();
+        });
+
+        sourcesContainer.appendChild(toggleBtn);
+        sourcesContainer.appendChild(sourcesList);
+        bubble.appendChild(sourcesContainer);
+      }
+
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      messagesBox.appendChild(row);
+      scrollToBottom();
+      return row;
+    }
+
+    function showTypingIndicator() {
+      const row = document.createElement('div');
+      row.className = 'message-row bot';
+      row.id = 'typingIndicatorRow';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar avatar-bot';
+      avatar.textContent = '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = `
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      `;
+
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      messagesBox.appendChild(row);
+      scrollToBottom();
+      return row;
+    }
+
+    function removeTypingIndicator() {
+      const indicator = document.getElementById('typingIndicatorRow');
+      if (indicator) {
+        indicator.remove();
+      }
+    }
+
+    async function handleSend(queryText) {
+      const text = queryText || chatInput.value.trim();
+      if (!text) return;
+
+      appendMessage('user', marked.parse(text));
+      chatInput.value = '';
+      sendBtn.disabled = true;
+      showTypingIndicator();
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+
+        removeTypingIndicator();
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          const errMsg = errData.detail || 'An error occurred while contacting the server.';
+          appendMessage('bot', `<p style="color: #f87171;">⚠️ ${errMsg}</p>`);
+        } else {
+          const data = await response.json();
+          const parsedAnswer = marked.parse(data.answer);
+          appendMessage('bot', parsedAnswer, data.sources);
+        }
+      } catch (err) {
+        removeTypingIndicator();
+        appendMessage('bot', `<p style="color: #f87171;">⚠️ Network error: Could not reach the API server.</p>`);
+      } finally {
+        sendBtn.disabled = false;
+        chatInput.focus();
+      }
+    }
+
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleSend();
+    });
+
+    suggestionsBar.querySelectorAll('.chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        handleSend(chip.textContent.trim());
+      });
+    });
+  </script>
+</body>
+</html>
