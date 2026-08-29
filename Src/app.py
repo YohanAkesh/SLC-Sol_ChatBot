@@ -1,6 +1,17 @@
+import sys
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Ensure project root is on sys.path
+BASE_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = Path(__file__).resolve().parent
+
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(SRC_DIR / ".env")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,10 +23,6 @@ from typing import List, Optional
 from Src.rag import RAGChatbot
 from Src.ingestion import ingest_data, DATA_DIR, CHROMA_DIR
 
-load_dotenv()
-
-# Base paths
-BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "Src" / "static"
 TEMPLATES_DIR = BASE_DIR / "Src" / "templates"
 
@@ -117,4 +124,5 @@ async def trigger_ingest():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("Src.app:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("Src.app:app", host="127.0.0.1", port=8000, reload=True, app_dir=str(BASE_DIR))
+

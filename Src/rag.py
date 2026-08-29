@@ -5,14 +5,17 @@ from dotenv import load_dotenv
 
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-load_dotenv()
-
-# Base paths
+# Base paths & load env
 BASE_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(SRC_DIR / ".env")
+
 DATA_DIR = BASE_DIR / "Data"
 CHROMA_DIR = BASE_DIR / "chroma_db"
 COLLECTION_NAME = "slc_solutions_kb"
@@ -21,16 +24,19 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 # Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_API")
 DEFAULT_GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+HF_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN") or os.getenv("HF_TOKEN")
 
 def get_embeddings():
     """
-    Initializes HuggingFace sentence-transformers embedding model.
-    Dimension: 384 (matches ChromaDB native dimensionality).
+    Initializes Hugging Face Serverless Endpoint Embeddings.
+    Dimension: 384 (zero local model download, no PyTorch overhead).
     """
-    return HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL_NAME,
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True}
+    if not HF_TOKEN:
+        raise ValueError("HUGGINGFACEHUB_API_TOKEN is missing in environment or .env file.")
+        
+    return HuggingFaceEndpointEmbeddings(
+        model=EMBEDDING_MODEL_NAME,
+        huggingfacehub_api_token=HF_TOKEN,
     )
 
 def get_vectorstore(persist_directory: Path = CHROMA_DIR):

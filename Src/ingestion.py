@@ -5,28 +5,34 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_chroma import Chroma
 
-load_dotenv()
-
-# Base paths
+# Base paths & load env
 BASE_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(SRC_DIR / ".env")
+
 DATA_DIR = BASE_DIR / "Data"
 CHROMA_DIR = BASE_DIR / "chroma_db"
 COLLECTION_NAME = "slc_solutions_kb"
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"  # 384-dim matching ChromaDB
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+HF_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN") or os.getenv("HF_TOKEN")
 
 def get_embeddings():
     """
-    Initializes HuggingFace sentence-transformers embedding model.
-    Dimension: 384 (matches ChromaDB native dimensionality).
+    Initializes Hugging Face Serverless Endpoint Embeddings.
+    Dimension: 384 (zero local model download, no PyTorch overhead).
     """
-    print(f"Loading embedding model: {EMBEDDING_MODEL_NAME} (vector size: 384)...")
-    return HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL_NAME,
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True}
+    if not HF_TOKEN:
+        raise ValueError("HUGGINGFACEHUB_API_TOKEN is missing in environment or .env file.")
+        
+    print(f"Connecting to Hugging Face Serverless Embedding API ({EMBEDDING_MODEL_NAME})...")
+    return HuggingFaceEndpointEmbeddings(
+        model=EMBEDDING_MODEL_NAME,
+        huggingfacehub_api_token=HF_TOKEN,
     )
 
 def load_documents(data_path: Path):
