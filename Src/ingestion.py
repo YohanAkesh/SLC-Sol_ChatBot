@@ -5,8 +5,7 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from langchain_chroma import Chroma
+from langchain_pinecone import PineconeEmbeddings, PineconeVectorStore
 
 # Base paths & load env
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,23 +15,24 @@ load_dotenv(BASE_DIR / ".env")
 load_dotenv(SRC_DIR / ".env")
 
 DATA_DIR = BASE_DIR / "Data"
-CHROMA_DIR = BASE_DIR / "chroma_db"
-COLLECTION_NAME = "slc_solutions_kb"
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-HF_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN") or os.getenv("HF_TOKEN")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "slcindex1")
+EMBEDDING_MODEL_NAME = "llama-text-embed-v2"
+EMBEDDING_DIMENSION = 1024
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
 def get_embeddings():
     """
-    Initializes Hugging Face Serverless Endpoint Embeddings.
-    Dimension: 384 (zero local model download, no PyTorch overhead).
+    Initializes Pinecone Hosted Embeddings (llama-text-embed-v2, dimension=1024).
+    Zero local disk usage.
     """
-    if not HF_TOKEN:
-        raise ValueError("HUGGINGFACEHUB_API_TOKEN is missing in environment or .env file.")
+    if not PINECONE_API_KEY:
+        raise ValueError("PINECONE_API_KEY is missing in environment or .env file.")
         
-    print(f"Connecting to Hugging Face Serverless Embedding API ({EMBEDDING_MODEL_NAME})...")
-    return HuggingFaceEndpointEmbeddings(
+    print(f"Initializing Pinecone Hosted Embeddings ({EMBEDDING_MODEL_NAME}, dim={EMBEDDING_DIMENSION})...")
+    return PineconeEmbeddings(
         model=EMBEDDING_MODEL_NAME,
-        huggingfacehub_api_token=HF_TOKEN,
+        pinecone_api_key=PINECONE_API_KEY,
+        dimension=EMBEDDING_DIMENSION,
     )
 
 def load_documents(data_path: Path):
@@ -79,12 +79,12 @@ def split_documents_context_window(documents, chunk_size: int = 500, chunk_overl
     print(f"Generated {len(chunks)} contextual chunks.")
     return chunks
 
-def ingest_data(data_path: Path = DATA_DIR, persist_directory: Path = CHROMA_DIR):
+def ingest_data(data_path: Path = DATA_DIR, index_name: str = PINECONE_INDEX_NAME):
     """
-    Full pipeline to load PDFs, chunk them with context window, and store in ChromaDB.
+    Full pipeline to load PDFs, chunk them with context window, and upsert embeddings into Pinecone index.
     """
     print("=" * 60)
-    print("Starting Knowledge Base Ingestion Pipeline")
+    print(f"Starting Knowledge Base Ingestion to Pinecone Index: '{index_name}'")
     print("=" * 60)
     
     # 1. Load Documents
@@ -96,16 +96,16 @@ def ingest_data(data_path: Path = DATA_DIR, persist_directory: Path = CHROMA_DIR
     # 3. Embedding model
     embeddings = get_embeddings()
     
-    # 4. Create and Persist Chroma Vector Store
-    print(f"Storing vector embeddings in ChromaDB at: {persist_directory}...")
-    vector_store = Chroma.from_documents(
+    # 4. Create and Upsert into Pinecone Vector Store
+    print(f"Upserting vector embeddings to Pinecone index '{index_name}'...")
+    vector_store = PineconeVectorStore.from_documents(
         documents=chunks,
         embedding=embeddings,
-        collection_name=COLLECTION_NAME,
-        persist_directory=str(persist_directory)
+        index_name=index_name,
+        pinecone_api_key=PINECONE_API_KEY
     )
     
-    print(f"Successfully ingested {len(chunks)} chunks into ChromaDB collection '{COLLECTION_NAME}'!")
+    print(f"Successfully ingested {len(chunks)} chunks into Pinecone index '{index_name}'!")
     print("=" * 60)
     return vector_store
 

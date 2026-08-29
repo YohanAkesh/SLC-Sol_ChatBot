@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from Src.rag import RAGChatbot
-from Src.ingestion import ingest_data, DATA_DIR, CHROMA_DIR
+from Src.ingestion import ingest_data, DATA_DIR, PINECONE_INDEX_NAME
 
 STATIC_DIR = BASE_DIR / "Src" / "static"
 TEMPLATES_DIR = BASE_DIR / "Src" / "templates"
@@ -32,7 +32,7 @@ TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 # Initialize FastAPI App
 app = FastAPI(
     title="S.L.C Solutions RAG Chatbot",
-    description="Intelligent AI Customer Support Assistant powered by Groq & ChromaDB",
+    description="Intelligent AI Customer Support Assistant powered by Groq & Pinecone",
     version="1.0.0"
 )
 
@@ -83,10 +83,12 @@ async def serve_ui():
 
 @app.get("/api/health")
 async def health_check():
-    chroma_exists = CHROMA_DIR.exists()
+    has_pinecone_key = bool(os.getenv("PINECONE_API_KEY"))
     return {
         "status": "healthy",
-        "chroma_db_initialized": chroma_exists,
+        "vector_store": "Pinecone",
+        "index_name": PINECONE_INDEX_NAME,
+        "pinecone_configured": has_pinecone_key,
         "model": os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
     }
 
@@ -116,9 +118,9 @@ async def chat_endpoint(request: ChatRequest):
 async def trigger_ingest():
     try:
         global chatbot_instance
-        ingest_data(DATA_DIR, CHROMA_DIR)
+        ingest_data(DATA_DIR, PINECONE_INDEX_NAME)
         chatbot_instance = RAGChatbot()  # Refresh vectorstore connection
-        return IngestResponse(status="success", message="Knowledge Base successfully re-indexed into ChromaDB.")
+        return IngestResponse(status="success", message=f"Knowledge Base successfully indexed into Pinecone index '{PINECONE_INDEX_NAME}'.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
 
